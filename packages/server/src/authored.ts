@@ -1,21 +1,17 @@
+import type { AuthoredMetadataPatch } from '@archive/shared';
+
 import { readAuthored, writeAuthored } from "@/storage/cas";
 import { findFileByHash, upsertAuthoredRow } from "@/storage/db";
-
-export type AuthoredPatch = {
-  project?: string | null;
-  tags?: string[];
-};
 
 /**
  * The single seam for hand-authored metadata. Read-merge-writes the file's
  * `authored.json` sidecar (the source of truth), then upserts the derived DB
- * row — same sidecar-first ordering as {@link applyPlugins}. Auth is enforced by
- * the caller (the /admin routes); this function assumes an authorized request.
+ * row — same sidecar-first ordering as {@link applyPlugins}.
  *
  * Throws if the hash isn't in the archive, so a typo'd hash can't strand an
  * orphan sidecar with no file behind it.
  */
-export async function setAuthoredMetadata(hash: string, patch: AuthoredPatch): Promise<void> {
+export async function setAuthoredMetadata(hash: string, patch: AuthoredMetadataPatch): Promise<void> {
   if (!findFileByHash(hash)) {
     throw new Error(`Cannot set authored metadata: no archived file with hash ${hash}`);
   }

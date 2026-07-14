@@ -1,7 +1,9 @@
+import type { FileDetail, FileListItem } from '@archive/shared';
+
 import { findFileByHash, getAuthoredRow, getPluginRow, listFiles } from "@/storage/db";
 import { pluginRegistry } from "@/plugins/registry";
 
-export function getFileDetail(hash: string) {
+export function getFileDetail(hash: string): FileDetail | undefined {
   const file = findFileByHash(hash);
   if (!file) return undefined;
 
@@ -14,7 +16,7 @@ export function getFileDetail(hash: string) {
   return { ...file, authored: getAuthoredRow(hash) ?? null, plugins: pluginData };
 }
 
-export function listFilesPage(limit: number, offset: number) {
+export function listFilesPage(limit: number, offset: number): FileListItem[] {
   const files = listFiles(limit, offset);
   return files.map((file) => {
     const core = getPluginRow("core_metadata", file.hash);

@@ -12,8 +12,7 @@ const schema = z.object({
   API_PORT: z.coerce.number().default(3000),
   API_HOST: z.string().default('127.0.0.1'),
   VERBOSE: z.coerce.boolean().default(false),
-  ADMIN_USER: z.string().default('admin'),
-  ADMIN_PASSWORD: z.string().default('change'),
+  API_KEY: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

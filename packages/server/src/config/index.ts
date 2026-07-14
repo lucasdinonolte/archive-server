@@ -13,11 +13,5 @@ export const config = {
   clipModelId: 'Xenova/clip-vit-base-patch32',
   apiPort: env.API_PORT,
   apiHost: env.API_HOST,
-  adminUser: env.ADMIN_USER,
-  adminPassword: env.ADMIN_PASSWORD,
-  tags: [
-    'poster',
-    'website',
-    'pattern',
-  ],
+  apiKey: env.API_KEY,
 };

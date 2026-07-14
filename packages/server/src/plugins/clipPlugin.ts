@@ -11,6 +11,8 @@ import {
 import { config } from '@/config';
 import type { Plugin } from './types';
 
+const TAG_VOCABULARY = ['poster', 'website', 'pattern'];
+
 type TagVocabEntry = {
   tag: string;
   embedding: Float32Array;
@@ -60,7 +62,7 @@ async function generateEmbeddedTags(tags: string[]): Promise<TagVocabEntry[]> {
 }
 
 export const createClipPlugin = async (): Promise<Plugin> => {
-  const vocab = await generateEmbeddedTags(config.tags);
+  const vocab = await generateEmbeddedTags(TAG_VOCABULARY);
 
   const processor: Processor = await AutoProcessor.from_pretrained(config.clipModelId);
   const visionModel: PreTrainedModel = await CLIPVisionModelWithProjection.from_pretrained(
