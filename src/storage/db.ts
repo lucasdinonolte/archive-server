@@ -19,6 +19,13 @@ const INITIAL_SCHEMA = `CREATE TABLE IF NOT EXISTS files (
   ingested_at TEXT NOT NULL
 )`;
 
+const AUTHORED_SCHEMA = `CREATE TABLE IF NOT EXISTS authored_metadata (
+  file_hash TEXT PRIMARY KEY REFERENCES files(hash),
+  project TEXT,
+  tags TEXT,
+  updated_at TEXT NOT NULL
+)`;
+
 type FileRow = { hash: string; storage_path: string; original_filename: string; ingested_at: string };
 
 const FILE_COLS = "hash, storage_path, original_filename, ingested_at";
@@ -40,9 +47,31 @@ export async function createDatabaseConnection(): Promise<Database.Database> {
   //db.pragma('journal_mode = WAL');
 
   db.exec(INITIAL_SCHEMA);
+  db.exec(AUTHORED_SCHEMA);
 
   return db;
 };
+
+export type AuthoredRecord = { project: string | null; tags: string[]; updatedAt: string };
+
+export function getAuthoredRow(hash: string): AuthoredRecord | undefined {
+  const row = db
+    .prepare("SELECT project, tags, updated_at FROM authored_metadata WHERE file_hash = ?")
+    .get(hash) as { project: string | null; tags: string | null; updated_at: string } | undefined;
+  if (!row) return undefined;
+  return { project: row.project, tags: row.tags ? JSON.parse(row.tags) : [], updatedAt: row.updated_at };
+}
+
+export function upsertAuthoredRow(hash: string, record: AuthoredRecord): void {
+  db.prepare(
+    `INSERT INTO authored_metadata (file_hash, project, tags, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(file_hash) DO UPDATE SET
+       project = excluded.project,
+       tags = excluded.tags,
+       updated_at = excluded.updated_at`
+  ).run(hash, record.project, JSON.stringify(record.tags), record.updatedAt);
+}
 
 export function findFileByHash(hash: string): FileRecord | undefined {
   const row = db
@@ -125,12 +154,15 @@ export function rebuildSchema(schemas: PluginSchema[]): void {
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'plugin_%'")
     .all() as { name: string }[];
 
-  // Drop plugin tables before files: their foreign key references files(hash),
-  // so the parent can't be dropped while a child table still exists.
+  // Drop child tables before files: they reference files(hash), so the parent
+  // can't be dropped while a child still exists. authored_metadata is derived
+  // from its sidecar (not a plugin table), so it drops and rebuilds here too.
   for (const { name } of pluginTables) db.exec(`DROP TABLE IF EXISTS ${name}`);
+  db.exec("DROP TABLE IF EXISTS authored_metadata");
   db.exec("DROP TABLE IF EXISTS files");
 
   db.exec(INITIAL_SCHEMA);
+  db.exec(AUTHORED_SCHEMA);
   for (const schema of schemas) ensurePluginTable(schema);
 }
 

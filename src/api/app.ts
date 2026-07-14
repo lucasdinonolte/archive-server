@@ -1,14 +1,19 @@
 import { Hono } from "hono";
 import { getFileDetail, listFilesPage } from './queries';
+import { admin } from './admin';
 
 export const app = new Hono();
 
+// The public API is read-only; /admin is the sole (auth-gated) write surface.
 app.use("*", async (c, next) => {
-  if (c.req.method !== "GET" && c.req.method !== "HEAD") {
+  const isAdmin = c.req.path === "/admin" || c.req.path.startsWith("/admin/");
+  if (!isAdmin && c.req.method !== "GET" && c.req.method !== "HEAD") {
     return c.json({ error: "method not allowed - this API is read-only" }, 405);
   }
   await next();
 });
+
+app.route("/", admin);
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 

@@ -37,6 +37,48 @@ export function sidecarPathForHash(hash: string): string {
   return path.join(config.storageDir, hash.slice(0, 2), hash.slice(2, 4), `${hash}.data.json`);
 }
 
+/** Current authored-sidecar format. */
+export const AUTHORED_FORMAT = 1;
+
+/**
+ * Hand-authored metadata for a file. Unlike the plugin sidecar this is NOT
+ * recomputable — it lives in its own file so the plugin write path can never
+ * touch it, and it is the source of truth for the `authored_metadata` DB index.
+ */
+export type AuthoredMetadata = {
+  formatVersion: number;
+  hash: string;
+  project: string | null;
+  tags: string[];
+  updatedAt: string;
+};
+
+export function authoredPathForHash(hash: string): string {
+  return path.join(config.storageDir, hash.slice(0, 2), hash.slice(2, 4), `${hash}.authored.json`);
+}
+
+/** Reads a file's authored metadata, or undefined if none has been written yet. */
+export async function readAuthored(hash: string): Promise<AuthoredMetadata | undefined> {
+  let raw: string;
+  try {
+    raw = await readFile(authoredPathForHash(hash), "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw err;
+  }
+  return JSON.parse(raw) as AuthoredMetadata;
+}
+
+/** Atomically writes a file's authored metadata (tmp + rename), mirroring {@link writeSidecar}. */
+export async function writeAuthored(record: Omit<AuthoredMetadata, "formatVersion">): Promise<void> {
+  const authored: AuthoredMetadata = { formatVersion: AUTHORED_FORMAT, ...record };
+  const finalPath = authoredPathForHash(record.hash);
+  const tmpPath = `${finalPath}.tmp-${process.pid}`;
+  await mkdir(path.dirname(finalPath), { recursive: true });
+  await writeFile(tmpPath, JSON.stringify(authored, null, 2));
+  await rename(tmpPath, finalPath);
+}
+
 function toJsonSafe(value: ColumnValue): JSONValue {
   // BLOB columns (e.g. a packed embedding) can't be represented in JSON -
   // base64 is the documented convention for this sidecar specifically.

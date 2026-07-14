@@ -1,4 +1,4 @@
-import { findFileByHash, getPluginRow, listFiles } from "@/storage/db";
+import { findFileByHash, getAuthoredRow, getPluginRow, listFiles } from "@/storage/db";
 import { pluginRegistry } from "@/plugins/registry";
 
 export function getFileDetail(hash: string) {
@@ -11,7 +11,7 @@ export function getFileDetail(hash: string) {
     const row = getPluginRow(plugin.schema.table, hash);
     if (row) pluginData[plugin.id] = row;
   }
-  return { ...file, plugins: pluginData };
+  return { ...file, authored: getAuthoredRow(hash) ?? null, plugins: pluginData };
 }
 
 export function listFilesPage(limit: number, offset: number) {

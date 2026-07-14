@@ -1,6 +1,6 @@
 import { pluginRegistry } from "@/plugins/registry";
-import { decodeSidecarEntry, listSidecarHashes, readSidecar } from "@/storage/cas";
-import { insertFileRecord, rebuildSchema, upsertPluginRow } from "@/storage/db";
+import { decodeSidecarEntry, listSidecarHashes, readAuthored, readSidecar } from "@/storage/cas";
+import { insertFileRecord, rebuildSchema, upsertAuthoredRow, upsertPluginRow } from "@/storage/db";
 import { logger } from "@/utils/logger";
 
 /**
@@ -32,6 +32,11 @@ export async function rebuildDb(): Promise<void> {
       const entry = sidecar.plugins[plugin.id];
       if (!entry) continue;
       upsertPluginRow(plugin.schema, hash, decodeSidecarEntry(plugin.schema, entry));
+    }
+
+    const authored = await readAuthored(hash);
+    if (authored) {
+      upsertAuthoredRow(hash, { project: authored.project, tags: authored.tags, updatedAt: authored.updatedAt });
     }
 
     restored++;
