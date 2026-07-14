@@ -35,6 +35,7 @@
     "@huggingface/transformers": "^4.2.0",
     "better-sqlite3": "^12.11.1",
     "hono": "^4.12.30",
+    "sharp": "^0.34.5",
     "zod": "^4.4.3"
   }
 }
