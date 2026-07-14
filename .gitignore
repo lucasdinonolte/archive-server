@@ -2,5 +2,6 @@ node_modules/
 dist/
 *.db
 storage/
+!src/storage
 incoming/
 .DS_Store
