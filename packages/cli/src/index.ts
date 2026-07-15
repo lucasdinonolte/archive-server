@@ -1,8 +1,35 @@
 import { execFile } from 'node:child_process';
+import { readdir, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 
 import { loadConfig } from './config.ts';
 import { scpToRemote } from './scp.ts';
 import { startUiServer } from './serve.ts';
+
+const MEDIA_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'avif', 'tiff', 'bmp',
+  'mp4', 'mov', 'm4v', 'webm', 'mkv', 'avi',
+]);
+
+function isMedia(path: string): boolean {
+  return MEDIA_EXTENSIONS.has(path.split('.').pop()?.toLowerCase() ?? '');
+}
+
+// Expand directories into their media files (recursive); pass files through as-is.
+async function expandPaths(paths: string[]): Promise<string[]> {
+  const files: string[] = [];
+  for (const p of paths) {
+    if ((await stat(p)).isDirectory()) {
+      const entries = await readdir(p, { recursive: true, withFileTypes: true });
+      for (const e of entries) {
+        if (e.isFile() && isMedia(e.name)) files.push(join(e.parentPath, e.name));
+      }
+    } else {
+      files.push(p);
+    }
+  }
+  return files;
+}
 
 function openBrowser(url: string): void {
   execFile('open', [url], (err) => {
@@ -13,7 +40,9 @@ function openBrowser(url: string): void {
 async function sendFiles(paths: string[], openMetadata: boolean): Promise<void> {
   const config = loadConfig();
 
-  for (const p of paths) {
+  const files = await expandPaths(paths);
+
+  for (const p of files) {
     console.log(`Uploading ${p}...`);
     await scpToRemote(p, config);
     console.log(`Done: ${p}`);
@@ -43,7 +72,7 @@ if (args[0] === 'manage') {
 } else if (args.length === 0 || args[0] === '--help') {
   console.log(
     'Usage:\n' +
-      '  archive <path> [--metadata]   Upload files, optionally open UI to tag\n' +
+      '  archive <path...> [--metadata]  Upload files or folders (recursively finds images/videos), optionally open UI to tag\n' +
       '  archive manage                Open UI to browse/tag all archived items',
   );
 } else {

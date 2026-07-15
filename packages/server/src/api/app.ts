@@ -5,7 +5,7 @@ import { authoredMetadataSchema } from '@archive/shared';
 
 import { setAuthoredMetadata } from '@/authored';
 import { config } from '@/config';
-import { countFiles, findFileByHash } from '@/storage/db';
+import { countFiles, findFileByHash, getStats } from '@/storage/db';
 
 import { getFileDetail, listFilesPage } from './queries';
 import { image } from './image';
@@ -33,6 +33,8 @@ app.use('*', async (c, next) => {
 });
 
 app.get('/health', (c) => c.json({ status: 'ok' }));
+
+app.get('/stats', (c) => c.json(getStats()));
 
 app.get('/files', (c) => {
   const limit = Math.min(Number(c.req.query('limit') ?? 50), 200);

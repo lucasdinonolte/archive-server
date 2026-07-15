@@ -92,6 +92,16 @@ export function countFiles(): number {
   return (db.prepare("SELECT COUNT(*) as n FROM files").get() as { n: number }).n;
 }
 
+export function getStats(): { totalFiles: number; totalSizeBytes: number } {
+  const row = db
+    .prepare(
+      `SELECT COUNT(f.hash) AS totalFiles, COALESCE(SUM(c.size_bytes), 0) AS totalSizeBytes
+       FROM files f LEFT JOIN plugin_core_metadata c ON c.file_hash = f.hash`
+    )
+    .get() as { totalFiles: number; totalSizeBytes: number };
+  return row;
+}
+
 export function getPluginRow(table: string, hash: string): Record<string, unknown> | undefined {
   const row = db.prepare(`SELECT * FROM plugin_${table} WHERE file_hash = ?`).get(hash) as Record<string, unknown> | undefined;
   if (!row) return undefined;
