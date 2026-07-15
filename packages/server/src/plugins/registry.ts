@@ -1,11 +1,13 @@
 import type { Plugin } from './types';
 import { coreMetadataPlugin } from './coreMetadata';
+import { imageMetadataPlugin } from './imageMetadata';
 import { createClipPlugin } from './clipPlugin';
 
 import { logger } from "@/utils/logger";
 
 export const pluginRegistry: Array<Plugin> = [
   coreMetadataPlugin,
+  imageMetadataPlugin,
   // Add other plugins here
 ];
 
