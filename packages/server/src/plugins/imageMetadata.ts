@@ -31,4 +31,12 @@ export const imageMetadataPlugin: Plugin = {
       domninant_color: dominantColor,
     };
   },
+  project: (data) => ({
+    width: data.width as number,
+    height: data.height as number,
+    format: data.format as string,
+    colorSpace: data.color_space as string,
+    dpi: data.dpi as number,
+    dominantColor: data.domninant_color as string,
+  }),
 };

@@ -17,4 +17,8 @@ export const coreMetadataPlugin: Plugin = {
     const { mtimeMs } = await stat(ctx.storagePath);
     return { size_bytes: ctx.sizeBytes, content_type: ctx.contentType, mtime_ms: mtimeMs };
   },
+  project: (data) => ({
+    contentType: data.content_type as string,
+    sizeBytes: data.size_bytes as number,
+  }),
 };

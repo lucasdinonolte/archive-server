@@ -84,6 +84,13 @@ export const createClipPlugin = async (): Promise<Plugin> => {
         { name: 'computed_at', type: 'TEXT' },
       ],
     },
+    project: (data, ctx) => {
+      const raw = data.tags as string | null;
+      const clipLabels: string[] = raw
+        ? (JSON.parse(raw) as Array<{ tag: string }>).map((t) => t.tag)
+        : [];
+      return { tags: [...new Set([...(ctx.tags ?? []), ...clipLabels])] };
+    },
     analyze: async (ctx) => {
       const image = await RawImage.read(ctx.storagePath);
       const imageInputs = await processor(image);

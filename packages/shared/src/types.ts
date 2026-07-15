@@ -1,21 +1,31 @@
-export type FileListItem = {
-  hash: string;
-  storagePath: string;
-  originalFilename: string;
-  ingestedAt: string;
-  size_bytes?: unknown;
-  content_type?: unknown;
-  mtime_ms?: unknown;
+export type ProjectedFields = {
+  // From authored metadata
+  project: string | null;
+  tags: string[];
+  // From core-metadata
+  contentType: string;
+  sizeBytes: number;
+  // From image-metadata (optional — only images)
+  width: number;
+  height: number;
+  format: string;
+  colorSpace: string;
+  dpi: number;
+  dominantColor: string;
 };
 
-export type FileDetail = {
+export type PublicFile = {
   hash: string;
-  storagePath: string;
   originalFilename: string;
   ingestedAt: string;
-  authored: AuthoredMetadata | null;
   plugins: Record<string, unknown>;
-};
+} & Partial<ProjectedFields>;
+
+/** @deprecated Use PublicFile instead */
+export type FileListItem = PublicFile;
+
+/** @deprecated Use PublicFile instead */
+export type FileDetail = PublicFile;
 
 export type AuthoredMetadata = {
   project: string | null;

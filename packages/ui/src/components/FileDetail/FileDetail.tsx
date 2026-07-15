@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { FileDetail as FileDetailType } from '@archive/shared';
+import type { PublicFile } from '@archive/shared';
 
 import { getFileDetail, imageUrl } from '../../api.ts';
 import { MetadataForm } from '../MetadataForm/MetadataForm.tsx';
@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function FileDetail({ hash, onBack }: Props) {
-  const [detail, setDetail] = useState<FileDetailType | null>(null);
+  const [detail, setDetail] = useState<PublicFile | null>(null);
 
   const load = () => {
     getFileDetail(hash).then(setDetail);
@@ -21,14 +21,7 @@ export function FileDetail({ hash, onBack }: Props) {
 
   if (!detail) return <p>Loading...</p>;
 
-  const core = detail.plugins.core_metadata as
-    | { content_type?: string; size_bytes?: number }
-    | undefined;
-  const clip = detail.plugins.image_clip as
-    | { tags?: string }
-    | undefined;
-  const isImage = core?.content_type?.startsWith('image/') ?? false;
-  const clipTags = clip?.tags ? JSON.parse(clip.tags) as { tag: string; score: number }[] : [];
+  const isImage = detail.contentType?.startsWith('image/') ?? false;
 
   return (
     <div className={css.root}>
@@ -48,30 +41,22 @@ export function FileDetail({ hash, onBack }: Props) {
 
       <dl className={css.meta}>
         <dt>Type</dt>
-        <dd>{core?.content_type ?? 'unknown'}</dd>
+        <dd>{detail.contentType ?? 'unknown'}</dd>
         <dt>Size</dt>
-        <dd>{core?.size_bytes ?? '?'} bytes</dd>
+        <dd>{detail.sizeBytes ?? '?'} bytes</dd>
         <dt>Ingested</dt>
         <dd>{detail.ingestedAt}</dd>
         <dt>Hash</dt>
         <dd className={css.hash}>{hash}</dd>
       </dl>
 
-      {clipTags.length > 0 && (
-        <div className={css.clipTags}>
-          <h2>CLIP tags</h2>
-          <ul>
-            {clipTags.map((t) => (
-              <li key={t.tag}>
-                {t.tag} ({t.score.toFixed(3)})
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <h2>Metadata</h2>
-      <MetadataForm hash={hash} authored={detail.authored} onSaved={load} />
+      <MetadataForm
+        hash={hash}
+        project={detail.project ?? null}
+        tags={detail.tags ?? []}
+        onSaved={load}
+      />
     </div>
   );
 }

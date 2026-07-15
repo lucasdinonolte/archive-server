@@ -1,3 +1,5 @@
+import type { ProjectedFields } from '@archive/shared';
+
 export type FileContext = {
   hash: string;
   storagePath: string;
@@ -33,6 +35,10 @@ export type Plugin = {
   appliesTo: (fileContext: FileContext) => boolean;
   schema?: PluginSchema;
   analyze: (fileContext: FileContext) => Promise<Record<string, ColumnValue>>;
+  project?: (
+    data: Record<string, ColumnValue>,
+    ctx: Partial<ProjectedFields>,
+  ) => Partial<ProjectedFields>;
 }
 
 /**

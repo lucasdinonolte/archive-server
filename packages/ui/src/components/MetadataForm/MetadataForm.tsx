@@ -1,19 +1,18 @@
 import { useState } from 'react';
 
-import type { AuthoredMetadata } from '@archive/shared';
-
 import { updateMetadata } from '../../api.ts';
 import css from './MetadataForm.module.css';
 
 type Props = {
   hash: string;
-  authored: AuthoredMetadata | null;
+  project: string | null;
+  tags: string[];
   onSaved: () => void;
 };
 
-export function MetadataForm({ hash, authored, onSaved }: Props) {
-  const [project, setProject] = useState(authored?.project ?? '');
-  const [tags, setTags] = useState((authored?.tags ?? []).join(', '));
+export function MetadataForm({ hash, project: initialProject, tags: initialTags, onSaved }: Props) {
+  const [project, setProject] = useState(initialProject ?? '');
+  const [tags, setTags] = useState(initialTags.join(', '));
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

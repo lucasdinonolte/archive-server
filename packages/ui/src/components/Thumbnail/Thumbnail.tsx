@@ -1,17 +1,15 @@
-import type { FileListItem } from '@archive/shared';
+import type { PublicFile } from '@archive/shared';
 
 import { imageUrl } from '../../api.ts';
 import css from './Thumbnail.module.css';
 
 type Props = {
-  file: FileListItem;
+  file: PublicFile;
   onClick: () => void;
 };
 
 export function Thumbnail({ file, onClick }: Props) {
-  const isImage =
-    typeof file.content_type === 'string' &&
-    file.content_type.startsWith('image/');
+  const isImage = file.contentType?.startsWith('image/') ?? false;
 
   return (
     <button className={css.root} onClick={onClick} type="button">
