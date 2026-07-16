@@ -9,9 +9,9 @@ import {
 } from '@huggingface/transformers';
 
 import { config } from '@/config';
-import type { Plugin } from './types';
+import type { Plugin } from '../types';
 
-const TAG_VOCABULARY = ['poster', 'website', 'pattern'];
+import { TAG_VOCABULARY } from './constants';
 
 type TagVocabEntry = {
   tag: string;
@@ -90,7 +90,7 @@ function loadModels() {
 export const createClipPlugin = async (): Promise<Plugin> => {
   return {
     id: 'image-clip',
-    version: 2,
+    version: 1,
     appliesTo: (ctx) => ctx.contentType.startsWith('image/'),
     schema: {
       table: 'image_clip',
