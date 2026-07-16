@@ -5,7 +5,8 @@ import { authoredMetadataSchema } from '@archive/shared';
 
 import { setAuthoredMetadata } from '@/authored';
 import { config } from '@/config';
-import { countFiles, findFileByHash, getStats } from '@/storage/db';
+import { countFiles, countFilesFiltered, findFileByHash, getAllProjects, getAllTags, getStats } from '@/storage/db';
+import type { FileFilter } from '@/storage/db';
 
 import { getFileDetail, listFilesPage } from './queries';
 import { image } from './image';
@@ -36,11 +37,24 @@ app.get('/health', (c) => c.json({ status: 'ok' }));
 
 app.get('/stats', (c) => c.json(getStats()));
 
+app.get('/tags', (c) => c.json({ tags: getAllTags() }));
+
+app.get('/projects', (c) => c.json({ projects: getAllProjects() }));
+
 app.get('/files', (c) => {
   const limit = Math.min(Number(c.req.query('limit') ?? 50), 200);
   const offset = Math.max(Number(c.req.query('offset') ?? 0), 0);
-  const files = listFilesPage(limit, offset);
-  const total = countFiles();
+
+  const tags = c.req.queries('tag');
+  const projects = c.req.queries('project');
+  const filter: FileFilter = {
+    tags: tags?.length ? tags : undefined,
+    projects: projects?.length ? projects : undefined,
+  };
+  const hasFilter = filter.tags || filter.projects;
+
+  const files = listFilesPage(limit, offset, hasFilter ? filter : undefined);
+  const total = hasFilter ? countFilesFiltered(filter) : countFiles();
   return c.json({ files, total, limit, offset });
 });
 

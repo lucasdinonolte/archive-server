@@ -1,7 +1,7 @@
 import type { PublicFileDetail, PublicFileListItem } from '@archive/shared';
 
-import { findFileByHash, getFileTags, getPluginRow, listFiles } from "@/storage/db";
-import type { FileRecord } from "@/storage/db";
+import { findFileByHash, getFileTags, getPluginRow, listFiles, listFilesFiltered } from "@/storage/db";
+import type { FileRecord, FileFilter } from "@/storage/db";
 import { pluginRegistry } from "@/plugins/registry";
 
 function toListItem(file: FileRecord): PublicFileListItem {
@@ -37,7 +37,8 @@ export function getFileDetail(hash: string): PublicFileDetail | undefined {
   return { ...toListItem(file), plugins };
 }
 
-export function listFilesPage(limit: number, offset: number): PublicFileListItem[] {
-  const files = listFiles(limit, offset);
+export function listFilesPage(limit: number, offset: number, filter?: FileFilter): PublicFileListItem[] {
+  const hasFilter = filter?.tags?.length || filter?.projects?.length;
+  const files = hasFilter ? listFilesFiltered(limit, offset, filter!) : listFiles(limit, offset);
   return files.map(toListItem);
 }

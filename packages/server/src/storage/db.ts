@@ -241,6 +241,75 @@ export function getFileTags(hash: string): string[] {
   return rows.map((r) => r.tag);
 }
 
+/** Returns every distinct tag across all files, sorted alphabetically. */
+export function getAllTags(): string[] {
+  const rows = db
+    .prepare("SELECT DISTINCT tag FROM tags ORDER BY tag")
+    .all() as { tag: string }[];
+  return rows.map((r) => r.tag);
+}
+
+/** Returns every distinct non-null project across all files, sorted alphabetically. */
+export function getAllProjects(): string[] {
+  const rows = db
+    .prepare("SELECT DISTINCT project FROM files WHERE project IS NOT NULL ORDER BY project")
+    .all() as { project: string }[];
+  return rows.map((r) => r.project);
+}
+
+export type FileFilter = {
+  tags?: string[];
+  projects?: string[];
+};
+
+/**
+ * Lists files with optional tag/project filtering. Tags are OR'd, projects are
+ * OR'd, and the two groups are AND'd together.
+ */
+export function listFilesFiltered(limit: number, offset: number, filter: FileFilter): FileRecord[] {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (filter.projects?.length) {
+    conditions.push(`f.project IN (${filter.projects.map(() => '?').join(', ')})`);
+    params.push(...filter.projects);
+  }
+
+  if (filter.tags?.length) {
+    conditions.push(
+      `f.hash IN (SELECT file_hash FROM tags WHERE tag IN (${filter.tags.map(() => '?').join(', ')}))`
+    );
+    params.push(...filter.tags);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const rows = db
+    .prepare(`SELECT f.* FROM files f ${where} ORDER BY f.ingested_at DESC LIMIT ? OFFSET ?`)
+    .all(...params, limit, offset) as FileRow[];
+  return rows.map(toFileRecord);
+}
+
+/** Counts files matching the given filter. */
+export function countFilesFiltered(filter: FileFilter): number {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (filter.projects?.length) {
+    conditions.push(`f.project IN (${filter.projects.map(() => '?').join(', ')})`);
+    params.push(...filter.projects);
+  }
+
+  if (filter.tags?.length) {
+    conditions.push(
+      `f.hash IN (SELECT file_hash FROM tags WHERE tag IN (${filter.tags.map(() => '?').join(', ')}))`
+    );
+    params.push(...filter.tags);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return (db.prepare(`SELECT COUNT(*) as n FROM files f ${where}`).get(...params) as { n: number }).n;
+}
+
 function pluginTableName(schema: PluginSchema): string {
   return `plugin_${schema.table}`;
 }
