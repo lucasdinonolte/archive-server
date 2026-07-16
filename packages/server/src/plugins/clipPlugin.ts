@@ -61,15 +61,28 @@ async function generateEmbeddedTags(tags: string[]): Promise<TagVocabEntry[]> {
   return vocab;
 }
 
+/**
+ * Loads the vision model + tag vocab on first use and memoises them. Deferring
+ * this keeps the ~hundreds-of-MB weights out of the heap for commands that never
+ * call analyze (rebuild) and until the first image actually arrives (watch).
+ */
+let modelsPromise: Promise<{ processor: Processor; visionModel: PreTrainedModel; vocab: TagVocabEntry[] }> | undefined;
+function loadModels() {
+  if (!modelsPromise) {
+    modelsPromise = (async () => {
+      const vocab = await generateEmbeddedTags(TAG_VOCABULARY);
+      const processor: Processor = await AutoProcessor.from_pretrained(config.clipModelId);
+      const visionModel: PreTrainedModel = await CLIPVisionModelWithProjection.from_pretrained(
+        config.clipModelId,
+        { dtype: 'q8' }, // quantized: ~4x smaller weights, fits a 2GB VPS. fp32 if tag quality suffers.
+      );
+      return { processor, visionModel, vocab };
+    })();
+  }
+  return modelsPromise;
+}
+
 export const createClipPlugin = async (): Promise<Plugin> => {
-  const vocab = await generateEmbeddedTags(TAG_VOCABULARY);
-
-  const processor: Processor = await AutoProcessor.from_pretrained(config.clipModelId);
-  const visionModel: PreTrainedModel = await CLIPVisionModelWithProjection.from_pretrained(
-    config.clipModelId,
-    { dtype: 'fp32' },
-  );
-
   return {
     id: 'image-clip',
     version: 1,
@@ -92,6 +105,7 @@ export const createClipPlugin = async (): Promise<Plugin> => {
       return { tags: [...new Set([...(ctx.tags ?? []), ...clipLabels])] };
     },
     analyze: async (ctx) => {
+      const { processor, visionModel, vocab } = await loadModels();
       const image = await RawImage.read(ctx.storagePath);
       const imageInputs = await processor(image);
       const { image_embeds } = await visionModel(imageInputs);

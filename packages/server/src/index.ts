@@ -1,5 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 
+import sharp from 'sharp';
+
 import { config } from '@/config';
 import { createDatabaseConnection, ensurePluginTable } from '@/storage/db';
 import { TaskQueue } from '@/queue';
@@ -13,6 +15,11 @@ import { logger } from "@/utils/logger";
 
 /** Opens the database and loads every plugin so their tables exist. Shared by all commands. */
 async function bootstrap(): Promise<void> {
+  // libvips defaults spend memory we don't have on a 2GB box: drop its operation
+  // cache and cap each decode to one thread so N concurrent images don't fan out.
+  sharp.cache(false);
+  sharp.concurrency(1);
+
   await createDatabaseConnection();
   await loadAsyncPlugins();
   for (const plugin of pluginRegistry) {
