@@ -58,6 +58,11 @@ async function generateEmbeddedTags(tags: string[]): Promise<TagVocabEntry[]> {
     embedding: (text_embeds.data.slice(index * dim, (index + 1) * dim)) as Float32Array,
   }));
 
+  // Free the text model and tokenizer — they're only needed once to compute
+  // the tag vocabulary and hold significant native (ONNX) memory.
+  await textModel.dispose?.();
+  tokenizer.dispose?.();
+
   return vocab;
 }
 
