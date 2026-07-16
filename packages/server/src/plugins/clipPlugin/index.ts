@@ -90,7 +90,7 @@ function loadModels() {
 export const createClipPlugin = async (): Promise<Plugin> => {
   return {
     id: 'image-clip',
-    version: 1,
+    version: 2,
     appliesTo: (ctx) => ctx.contentType.startsWith('image/'),
     schema: {
       table: 'image_clip',
