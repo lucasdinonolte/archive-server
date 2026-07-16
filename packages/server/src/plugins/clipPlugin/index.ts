@@ -79,7 +79,7 @@ function loadModels() {
       const processor: Processor = await AutoProcessor.from_pretrained(config.clipModelId);
       const visionModel: PreTrainedModel = await CLIPVisionModelWithProjection.from_pretrained(
         config.clipModelId,
-        { dtype: 'q8' }, // quantized: ~4x smaller weights, fits a 2GB VPS. fp32 if tag quality suffers.
+        { dtype: 'int8' }, // quantized: ~4x smaller weights, fits a 2GB VPS. fp32 if tag quality suffers.
       );
       return { processor, visionModel, vocab };
     })();
