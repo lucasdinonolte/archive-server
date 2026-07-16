@@ -1,6 +1,8 @@
 export type {
   ProjectedFields,
   PublicFile,
+  PublicFileListItem,
+  PublicFileDetail,
   FileListItem,
   FileDetail,
   AuthoredMetadata,

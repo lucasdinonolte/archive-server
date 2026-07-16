@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import sharp from 'sharp';
 
 import { config } from '@/config';
-import { findFileByHash, getPluginRow } from '@/storage/db';
+import { findFileByHash } from '@/storage/db';
 
 export const image = new Hono();
 
@@ -47,10 +47,7 @@ image.get('/files/:hash/image', async (c) => {
   const file = findFileByHash(hash);
   if (!file) return c.json({ error: 'not found' }, 404);
 
-  const core = getPluginRow('core_metadata', hash) as
-    | { content_type?: string }
-    | undefined;
-  if (!core?.content_type?.startsWith('image/'))
+  if (!file.contentType?.startsWith('image/'))
     return c.json({ error: 'not an image' }, 415);
 
   const w = clamp(Number(c.req.query('w') ?? 400), MIN_DIM, MAX_DIM);

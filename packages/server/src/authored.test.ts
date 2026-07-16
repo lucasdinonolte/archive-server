@@ -10,7 +10,7 @@ import { pluginRegistry } from '@/plugins/registry';
 import type { Plugin } from '@/plugins/types';
 import { rebuildDb } from '@/rebuild';
 import { writeSidecar } from '@/storage/cas';
-import { createDatabaseConnection, getAuthoredRow, upsertFileRecord } from '@/storage/db';
+import { createDatabaseConnection, findFileByHash, getFileTags, upsertFileRecord } from '@/storage/db';
 
 const hash = 'b'.repeat(64);
 let tmp: string;
@@ -48,9 +48,9 @@ it('merges partial patches, leaving untouched fields intact', async () => {
   await setAuthoredMetadata(hash, { project: 'atlas', tags: ['logo', 'wip'] });
   await setAuthoredMetadata(hash, { tags: ['logo'] }); // project omitted -> preserved
 
-  const row = getAuthoredRow(hash);
-  expect(row?.project).toBe('atlas');
-  expect(row?.tags).toEqual(['logo']);
+  const file = findFileByHash(hash);
+  expect(file?.project).toBe('atlas');
+  expect(getFileTags(hash)).toEqual(['logo']);
 });
 
 it('rejects an unknown hash so no orphan sidecar is stranded', async () => {
@@ -59,9 +59,9 @@ it('rejects an unknown hash so no orphan sidecar is stranded', async () => {
 
 it('survives a full DB rebuild — the whole point of the separate sidecar', async () => {
   await setAuthoredMetadata(hash, { project: 'atlas', tags: ['logo'] });
-  await rebuildDb(); // drops authored_metadata table, replays it from authored.json
+  await rebuildDb(); // drops tables, replays from sidecars
 
-  const row = getAuthoredRow(hash);
-  expect(row?.project).toBe('atlas');
-  expect(row?.tags).toEqual(['logo']);
+  const file = findFileByHash(hash);
+  expect(file?.project).toBe('atlas');
+  expect(getFileTags(hash)).toEqual(['logo']);
 });

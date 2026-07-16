@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { PublicFile } from '@archive/shared';
+import type { PublicFileDetail } from '@archive/shared';
 
 import { getFileDetail, imageUrl } from '../../api.ts';
 import { MetadataForm } from '../MetadataForm/MetadataForm.tsx';
@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function FileDetail({ hash, onBack }: Props) {
-  const [detail, setDetail] = useState<PublicFile | null>(null);
+  const [detail, setDetail] = useState<PublicFileDetail | null>(null);
 
   const load = () => {
     getFileDetail(hash).then(setDetail);

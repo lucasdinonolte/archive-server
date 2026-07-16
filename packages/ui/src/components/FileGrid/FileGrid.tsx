@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { PublicFile } from '@archive/shared';
+import type { PublicFileListItem } from '@archive/shared';
 
 import { listFiles } from '../../api.ts';
 import { Thumbnail } from '../Thumbnail/Thumbnail.tsx';
@@ -13,7 +13,7 @@ type Props = {
 const PAGE_SIZE = 50;
 
 export function FileGrid({ onSelect }: Props) {
-  const [files, setFiles] = useState<PublicFile[]>([]);
+  const [files, setFiles] = useState<PublicFileListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
 

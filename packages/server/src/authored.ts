@@ -1,7 +1,7 @@
 import type { AuthoredMetadataPatch } from '@archive/shared';
 
 import { readAuthored, writeAuthored } from "@/storage/cas";
-import { findFileByHash, upsertAuthoredRow } from "@/storage/db";
+import { findFileByHash, updateAuthoredFields, replaceTags } from "@/storage/db";
 
 /**
  * The single seam for hand-authored metadata. Read-merge-writes the file's
@@ -25,5 +25,6 @@ export async function setAuthoredMetadata(hash: string, patch: AuthoredMetadataP
   };
 
   await writeAuthored(merged);
-  upsertAuthoredRow(hash, { project: merged.project, tags: merged.tags, updatedAt: merged.updatedAt });
+  updateAuthoredFields(hash, merged.project, merged.updatedAt);
+  replaceTags(hash, 'authored', merged.tags);
 }

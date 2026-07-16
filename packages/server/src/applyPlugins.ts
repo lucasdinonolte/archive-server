@@ -4,8 +4,9 @@ import {
   writeSidecar,
   type SidecarPluginEntry,
 } from "@/storage/cas";
-import { upsertFileRecord, upsertPluginRow } from "@/storage/db";
+import { upsertFileRecord, upsertPluginRow, updateProjectedFields, replaceTags } from "@/storage/db";
 import { runPlugins } from "@/plugins/runner";
+import { computeProjectedFields, extractClipTags } from "@/projection";
 import type { FileContext, Plugin } from "@/plugins/types";
 
 /**
@@ -54,5 +55,23 @@ export async function applyPlugins(ctx: FileContext, plugins: Plugin[], ingested
     if (!plugin.schema) continue;
     const result = results[plugin.id];
     if (result) upsertPluginRow(plugin.schema, ctx.hash, result.data);
+  }
+
+  // Write-time projection: compute projected fields from the plugins that ran
+  // and persist them on the files row. COALESCE in updateProjectedFields ensures
+  // a partial backfill (only stale plugins) doesn't null out existing values.
+  const pluginData: Record<string, Record<string, import("@/plugins/types").ColumnValue>> = {};
+  for (const plugin of plugins) {
+    const result = results[plugin.id];
+    if (result) pluginData[plugin.id] = result.data;
+  }
+  const projected = computeProjectedFields(plugins, pluginData);
+  updateProjectedFields(ctx.hash, projected);
+
+  // Extract CLIP tags into the normalized tags table.
+  const clipResult = results['image-clip'];
+  if (clipResult) {
+    const clipTags = extractClipTags(clipResult.data);
+    replaceTags(ctx.hash, 'clip', clipTags);
   }
 }

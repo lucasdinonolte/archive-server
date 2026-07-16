@@ -1,5 +1,6 @@
 import type {
-  PublicFile,
+  PublicFileListItem,
+  PublicFileDetail,
   AuthoredMetadataPatch,
 } from '@archive/shared';
 
@@ -10,12 +11,12 @@ const API_KEY = params.get('key') ?? '';
 export async function listFiles(
   limit = 50,
   offset = 0,
-): Promise<{ files: PublicFile[]; total: number; limit: number; offset: number }> {
+): Promise<{ files: PublicFileListItem[]; total: number; limit: number; offset: number }> {
   const res = await fetch(`${API_URL}/files?limit=${limit}&offset=${offset}`);
   return res.json();
 }
 
-export async function getFileDetail(hash: string): Promise<PublicFile> {
+export async function getFileDetail(hash: string): Promise<PublicFileDetail> {
   const res = await fetch(`${API_URL}/files/${hash}`);
   return res.json();
 }

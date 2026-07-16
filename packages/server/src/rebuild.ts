@@ -1,6 +1,14 @@
 import { pluginRegistry } from "@/plugins/registry";
 import { decodeSidecarEntry, listSidecarHashes, readAuthored, readSidecar } from "@/storage/cas";
-import { insertFileRecord, rebuildSchema, upsertAuthoredRow, upsertPluginRow } from "@/storage/db";
+import {
+  insertFileRecord,
+  rebuildSchema,
+  replaceTags,
+  updateAuthoredFields,
+  updateProjectedFields,
+  upsertPluginRow,
+} from "@/storage/db";
+import { computeProjectedFields, extractClipTags } from "@/projection";
 import { logger } from "@/utils/logger";
 
 /**
@@ -27,16 +35,32 @@ export async function rebuildDb(): Promise<void> {
       ingestedAt: sidecar.ingestedAt,
     });
 
+    // Decode plugin data and insert plugin rows.
+    const pluginData: Record<string, Record<string, import("@/plugins/types").ColumnValue>> = {};
     for (const plugin of pluginRegistry) {
       if (!plugin.schema) continue;
       const entry = sidecar.plugins[plugin.id];
       if (!entry) continue;
-      upsertPluginRow(plugin.schema, hash, decodeSidecarEntry(plugin.schema, entry));
+      const decoded = decodeSidecarEntry(plugin.schema, entry);
+      upsertPluginRow(plugin.schema, hash, decoded);
+      pluginData[plugin.id] = decoded;
     }
 
+    // Compute and store projected fields from decoded plugin data.
+    const projected = computeProjectedFields(pluginRegistry, pluginData);
+    updateProjectedFields(hash, projected);
+
+    // Extract CLIP tags into the normalized tags table.
+    if (pluginData['image-clip']) {
+      const clipTags = extractClipTags(pluginData['image-clip']);
+      replaceTags(hash, 'clip', clipTags);
+    }
+
+    // Restore authored metadata.
     const authored = await readAuthored(hash);
     if (authored) {
-      upsertAuthoredRow(hash, { project: authored.project, tags: authored.tags, updatedAt: authored.updatedAt });
+      updateAuthoredFields(hash, authored.project, authored.updatedAt);
+      replaceTags(hash, 'authored', authored.tags);
     }
 
     restored++;

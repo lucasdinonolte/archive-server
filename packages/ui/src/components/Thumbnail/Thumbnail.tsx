@@ -1,10 +1,10 @@
-import type { PublicFile } from '@archive/shared';
+import type { PublicFileListItem } from '@archive/shared';
 
 import { imageUrl } from '../../api.ts';
 import css from './Thumbnail.module.css';
 
 type Props = {
-  file: PublicFile;
+  file: PublicFileListItem;
   onClick: () => void;
 };
 

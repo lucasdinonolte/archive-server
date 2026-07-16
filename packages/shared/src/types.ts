@@ -1,8 +1,6 @@
 export type ProjectedFields = {
-  // From authored metadata
   project: string | null;
   tags: string[];
-  // From core-metadata
   contentType: string;
   sizeBytes: number;
   // From image-metadata (optional — only images)
@@ -14,18 +12,24 @@ export type ProjectedFields = {
   dominantColor: string;
 };
 
-export type PublicFile = {
+export type PublicFileListItem = {
   hash: string;
   originalFilename: string;
   ingestedAt: string;
-  plugins: Record<string, unknown>;
 } & Partial<ProjectedFields>;
 
-/** @deprecated Use PublicFile instead */
-export type FileListItem = PublicFile;
+export type PublicFileDetail = PublicFileListItem & {
+  plugins: Record<string, unknown>;
+};
 
-/** @deprecated Use PublicFile instead */
-export type FileDetail = PublicFile;
+/** @deprecated Use PublicFileDetail instead */
+export type PublicFile = PublicFileDetail;
+
+/** @deprecated Use PublicFileListItem instead */
+export type FileListItem = PublicFileListItem;
+
+/** @deprecated Use PublicFileDetail instead */
+export type FileDetail = PublicFileDetail;
 
 export type AuthoredMetadata = {
   project: string | null;

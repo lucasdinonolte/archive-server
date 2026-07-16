@@ -1,40 +1,43 @@
-import type { ProjectedFields, PublicFile } from '@archive/shared';
+import type { PublicFileDetail, PublicFileListItem } from '@archive/shared';
 
-import { findFileByHash, getAuthoredRow, getPluginRow, listFiles } from "@/storage/db";
+import { findFileByHash, getFileTags, getPluginRow, listFiles } from "@/storage/db";
 import type { FileRecord } from "@/storage/db";
 import { pluginRegistry } from "@/plugins/registry";
-import type { ColumnValue } from "@/plugins/types";
 
-function assemblePublicFile(file: FileRecord): PublicFile {
-  const authored = getAuthoredRow(file.hash);
-  let ctx: Partial<ProjectedFields> = {
-    project: authored?.project ?? null,
-    tags: authored?.tags ?? [],
+function toListItem(file: FileRecord): PublicFileListItem {
+  const tags = getFileTags(file.hash);
+  return {
+    hash: file.hash,
+    originalFilename: file.originalFilename,
+    ingestedAt: file.ingestedAt,
+    tags,
+    project: file.project,
+    contentType: file.contentType ?? undefined,
+    sizeBytes: file.sizeBytes ?? undefined,
+    width: file.width ?? undefined,
+    height: file.height ?? undefined,
+    format: file.format ?? undefined,
+    colorSpace: file.colorSpace ?? undefined,
+    dpi: file.dpi ?? undefined,
+    dominantColor: file.dominantColor ?? undefined,
   };
+}
+
+export function getFileDetail(hash: string): PublicFileDetail | undefined {
+  const file = findFileByHash(hash);
+  if (!file) return undefined;
 
   const plugins: Record<string, unknown> = {};
-
   for (const plugin of pluginRegistry) {
     if (!plugin.schema) continue;
     const row = getPluginRow(plugin.schema.table, file.hash);
-    if (!row) continue;
-    plugins[plugin.id] = row;
-    if (plugin.project) {
-      ctx = { ...ctx, ...plugin.project(row as Record<string, ColumnValue>, { ...ctx }) };
-    }
+    if (row) plugins[plugin.id] = row;
   }
 
-  const { storagePath, ...rest } = file;
-  return { ...rest, ...ctx, plugins };
+  return { ...toListItem(file), plugins };
 }
 
-export function getFileDetail(hash: string): PublicFile | undefined {
-  const file = findFileByHash(hash);
-  if (!file) return undefined;
-  return assemblePublicFile(file);
-}
-
-export function listFilesPage(limit: number, offset: number): PublicFile[] {
+export function listFilesPage(limit: number, offset: number): PublicFileListItem[] {
   const files = listFiles(limit, offset);
-  return files.map(assemblePublicFile);
+  return files.map(toListItem);
 }
