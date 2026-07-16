@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 
 import type { PublicFileListItem } from '@archive/shared';
 
-import { listFiles } from '../../api.ts';
+import { listFiles, listTags, listProjects } from '../../api.ts';
+import { MultiSelect } from '../MultiSelect/MultiSelect.tsx';
 import { Thumbnail } from '../Thumbnail/Thumbnail.tsx';
 import css from './FileGrid.module.css';
 
@@ -17,12 +18,36 @@ export function FileGrid({ onSelect }: Props) {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
 
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [allProjects, setAllProjects] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+
   useEffect(() => {
-    listFiles(PAGE_SIZE, offset).then((res) => {
+    listTags().then(setAllTags);
+    listProjects().then(setAllProjects);
+  }, []);
+
+  useEffect(() => {
+    const filters = {
+      tags: selectedTags.length ? selectedTags : undefined,
+      projects: selectedProjects.length ? selectedProjects : undefined,
+    };
+    listFiles(PAGE_SIZE, offset, filters).then((res) => {
       setFiles(res.files);
       setTotal(res.total);
     });
-  }, [offset]);
+  }, [offset, selectedTags, selectedProjects]);
+
+  const handleTagsChange = (tags: string[]) => {
+    setSelectedTags(tags);
+    setOffset(0);
+  };
+
+  const handleProjectsChange = (projects: string[]) => {
+    setSelectedProjects(projects);
+    setOffset(0);
+  };
 
   const page = Math.floor(offset / PAGE_SIZE) + 1;
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
@@ -35,6 +60,27 @@ export function FileGrid({ onSelect }: Props) {
           {total} files — page {page} of {pages}
         </p>
       </header>
+
+      <div className={css.filters}>
+        <div className={css.filterField}>
+          <span>Tags</span>
+          <MultiSelect
+            options={allTags}
+            selected={selectedTags}
+            onChange={handleTagsChange}
+            placeholder="Filter by tags..."
+          />
+        </div>
+        <div className={css.filterField}>
+          <span>Project</span>
+          <MultiSelect
+            options={allProjects}
+            selected={selectedProjects}
+            onChange={handleProjectsChange}
+            placeholder="Filter by project..."
+          />
+        </div>
+      </div>
 
       <div className={css.grid}>
         {files.map((file) => (

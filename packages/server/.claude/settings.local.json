@@ -4,7 +4,8 @@
       "Bash(npx tsc:*)",
       "Bash(grep:*)",
       "Bash(find .:*)",
-      "Bash(find src:*)"
+      "Bash(find src:*)",
+      "Bash(npx tsup:*)"
     ]
   }
 }

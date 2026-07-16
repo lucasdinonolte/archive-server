@@ -1,0 +1,107 @@
+.root {
+  position: relative;
+}
+
+.control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius);
+  background: var(--color-background-surface);
+  cursor: pointer;
+  min-height: 2rem;
+  align-items: center;
+}
+
+.control:focus-within {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 1px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0 var(--spacing-sm);
+  background: var(--color-background-brand);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.pillRemove {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.7;
+}
+.pillRemove:hover {
+  opacity: 1;
+}
+
+.placeholder {
+  color: var(--color-text-secondary);
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: var(--spacing-xs);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius);
+  background: var(--color-background-page);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+  overflow: hidden;
+}
+
+.search {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--color-border-default);
+  border-radius: 0;
+  padding: var(--spacing-sm);
+  background: var(--color-background-page);
+}
+.search:focus-visible {
+  outline: none;
+}
+
+.list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--spacing-xs) 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  user-select: none;
+}
+.item:hover,
+.item[data-selected="true"] {
+  background: var(--color-background-surface);
+}
+
+.check {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.empty {
+  padding: var(--spacing-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+}

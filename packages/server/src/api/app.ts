@@ -10,6 +10,7 @@ import type { FileFilter } from '@/storage/db';
 
 import { getFileDetail, listFilesPage } from './queries';
 import { image } from './image';
+import { video } from './video';
 
 export const app = new Hono();
 
@@ -75,5 +76,6 @@ app.put('/files/:hash/metadata', async (c) => {
 });
 
 app.route('/', image);
+app.route('/', video);
 
 app.notFound((c) => c.json({ error: 'not found' }, 404));
