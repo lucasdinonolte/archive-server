@@ -14,3 +14,62 @@
 .root button {
   align-self: flex-start;
 }
+
+.fieldset {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.fieldset legend {
+  padding: 0 var(--spacing-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.row {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.keyInput {
+  flex: 2;
+  min-width: 0;
+}
+
+.valueInput {
+  flex: 3;
+  min-width: 0;
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: var(--text-lg, 1.125rem);
+  padding: 0 var(--spacing-xs);
+  line-height: 1;
+}
+
+.removeBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.addBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--text-sm);
+  align-self: flex-start;
+}
+
+.addBtn:hover {
+  color: var(--color-text-primary);
+}

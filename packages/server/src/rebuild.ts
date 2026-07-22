@@ -3,6 +3,7 @@ import { decodeSidecarEntry, listSidecarHashes, readAuthored, readSidecar } from
 import {
   insertFileRecord,
   rebuildSchema,
+  replaceCustomFields,
   replaceTags,
   updateAuthoredFields,
   updateProjectedFields,
@@ -61,6 +62,7 @@ export async function rebuildDb(): Promise<void> {
     if (authored) {
       updateAuthoredFields(hash, authored.project, authored.updatedAt);
       replaceTags(hash, 'authored', authored.tags);
+      replaceCustomFields(hash, authored.customFields ?? {});
     }
 
     restored++;

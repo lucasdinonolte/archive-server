@@ -50,6 +50,7 @@ export type AuthoredMetadata = {
   hash: string;
   project: string | null;
   tags: string[];
+  customFields: Record<string, string>;
   updatedAt: string;
 };
 

@@ -49,6 +49,13 @@ const TAGS_SCHEMA = `CREATE TABLE IF NOT EXISTS tags (
   PRIMARY KEY (file_hash, tag, source)
 )`;
 
+const CUSTOM_FIELDS_SCHEMA = `CREATE TABLE IF NOT EXISTS custom_fields (
+  file_hash TEXT NOT NULL REFERENCES files(hash),
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  PRIMARY KEY (file_hash, key)
+)`;
+
 type FileRow = {
   hash: string;
   storage_path: string;
@@ -109,6 +116,7 @@ export async function createDatabaseConnection(): Promise<Database.Database> {
 
   db.exec(INITIAL_SCHEMA);
   db.exec(TAGS_SCHEMA);
+  db.exec(CUSTOM_FIELDS_SCHEMA);
 
   // Migrate existing databases: add projected columns if missing.
   const existingCols = new Set(
@@ -122,6 +130,33 @@ export async function createDatabaseConnection(): Promise<Database.Database> {
 
   return db;
 };
+
+export type HashResolveResult =
+  | { kind: 'found'; file: FileRecord }
+  | { kind: 'not_found' }
+  | { kind: 'ambiguous'; candidates: string[] };
+
+export function resolveHashPrefix(prefix: string): HashResolveResult {
+  // Fast path: exact 64-char hash
+  if (prefix.length === 64) {
+    const file = findFileByHash(prefix);
+    return file ? { kind: 'found', file } : { kind: 'not_found' };
+  }
+
+  const rows = db
+    .prepare(`SELECT hash FROM files WHERE hash LIKE ? LIMIT 11`)
+    .all(`${prefix}%`) as { hash: string }[];
+
+  if (rows.length === 0) return { kind: 'not_found' };
+  if (rows.length === 1) {
+    const match = rows[0];
+    if (!match) return { kind: 'not_found' };
+    const file = findFileByHash(match.hash);
+    if (file) return { kind: 'found', file };
+    return { kind: 'not_found' };
+  }
+  return { kind: 'ambiguous', candidates: rows.slice(0, 10).map((r) => r.hash) };
+}
 
 export function findFileByHash(hash: string): FileRecord | undefined {
   const row = db
@@ -257,9 +292,41 @@ export function getAllProjects(): string[] {
   return rows.map((r) => r.project);
 }
 
+/** Returns every distinct custom field key across all files, sorted alphabetically. */
+export function getAllCustomFieldKeys(): string[] {
+  const rows = db
+    .prepare("SELECT DISTINCT key FROM custom_fields ORDER BY key")
+    .all() as { key: string }[];
+  return rows.map((r) => r.key);
+}
+
+/**
+ * Replaces all custom fields for a file. Deletes existing fields, then
+ * batch-inserts the new ones inside a transaction (mirrors {@link replaceTags}).
+ */
+export function replaceCustomFields(hash: string, fields: Record<string, string>): void {
+  const txn = db.transaction(() => {
+    db.prepare("DELETE FROM custom_fields WHERE file_hash = ?").run(hash);
+    const insert = db.prepare("INSERT INTO custom_fields (file_hash, key, value) VALUES (?, ?, ?)");
+    for (const [key, value] of Object.entries(fields)) {
+      insert.run(hash, key, value);
+    }
+  });
+  txn();
+}
+
+/** Returns all custom fields for a file as a key-value map. */
+export function getFileCustomFields(hash: string): Record<string, string> {
+  const rows = db
+    .prepare("SELECT key, value FROM custom_fields WHERE file_hash = ?")
+    .all(hash) as { key: string; value: string }[];
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
 export type FileFilter = {
   tags?: string[];
   projects?: string[];
+  customFields?: Record<string, string>;
 };
 
 /**
@@ -280,6 +347,15 @@ export function listFilesFiltered(limit: number, offset: number, filter: FileFil
       `f.hash IN (SELECT file_hash FROM tags WHERE tag IN (${filter.tags.map(() => '?').join(', ')}))`
     );
     params.push(...filter.tags);
+  }
+
+  if (filter.customFields) {
+    for (const [key, value] of Object.entries(filter.customFields)) {
+      conditions.push(
+        `f.hash IN (SELECT file_hash FROM custom_fields WHERE key = ? AND value = ?)`
+      );
+      params.push(key, value);
+    }
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -304,6 +380,15 @@ export function countFilesFiltered(filter: FileFilter): number {
       `f.hash IN (SELECT file_hash FROM tags WHERE tag IN (${filter.tags.map(() => '?').join(', ')}))`
     );
     params.push(...filter.tags);
+  }
+
+  if (filter.customFields) {
+    for (const [key, value] of Object.entries(filter.customFields)) {
+      conditions.push(
+        `f.hash IN (SELECT file_hash FROM custom_fields WHERE key = ? AND value = ?)`
+      );
+      params.push(key, value);
+    }
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -348,12 +433,14 @@ export function rebuildSchema(schemas: PluginSchema[]): void {
     .all() as { name: string }[];
 
   for (const { name } of pluginTables) db.exec(`DROP TABLE IF EXISTS ${name}`);
+  db.exec("DROP TABLE IF EXISTS custom_fields");
   db.exec("DROP TABLE IF EXISTS tags");
   db.exec("DROP TABLE IF EXISTS authored_metadata");
   db.exec("DROP TABLE IF EXISTS files");
 
   db.exec(INITIAL_SCHEMA);
   db.exec(TAGS_SCHEMA);
+  db.exec(CUSTOM_FIELDS_SCHEMA);
   for (const schema of schemas) ensurePluginTable(schema);
 }
 

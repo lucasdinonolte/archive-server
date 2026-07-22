@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import sharp from 'sharp';
 
 import { config } from '@/config';
-import { findFileByHash } from '@/storage/db';
+import { resolveHashPrefix } from '@/storage/db';
 
 export const image = new Hono();
 
@@ -43,9 +43,11 @@ function cachePath(hash: string, w: number, h: number | undefined): string {
 }
 
 image.get('/files/:hash/image', async (c) => {
-  const hash = c.req.param('hash');
-  const file = findFileByHash(hash);
-  if (!file) return c.json({ error: 'not found' }, 404);
+  const result = resolveHashPrefix(c.req.param('hash'));
+  if (result.kind === 'not_found') return c.json({ error: 'not found' }, 404);
+  if (result.kind === 'ambiguous') return c.json({ error: 'ambiguous hash prefix', candidates: result.candidates }, 400);
+  const file = result.file;
+  const hash = file.hash;
 
   if (!file.contentType?.startsWith('image/'))
     return c.json({ error: 'not an image' }, 415);

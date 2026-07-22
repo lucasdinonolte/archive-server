@@ -55,6 +55,12 @@ export async function listProjects(): Promise<string[]> {
   return data.projects;
 }
 
+export async function listCustomFieldKeys(): Promise<string[]> {
+  const res = await fetch(`${API_URL}/custom-field-keys`);
+  const data = await res.json();
+  return data.keys;
+}
+
 export function imageUrl(hash: string, width = 200): string {
   return `${API_URL}/files/${hash}/image?w=${width}`;
 }

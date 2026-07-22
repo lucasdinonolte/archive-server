@@ -55,6 +55,7 @@ export function FileDetail({ hash, onBack }: Props) {
         hash={hash}
         project={detail.project ?? null}
         tags={detail.tags ?? []}
+        customFields={detail.customFields ?? {}}
         onSaved={load}
       />
     </div>

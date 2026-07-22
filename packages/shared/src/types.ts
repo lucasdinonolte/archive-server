@@ -1,6 +1,7 @@
 export type ProjectedFields = {
   project: string | null;
   tags: string[];
+  customFields: Record<string, string>;
   contentType: string;
   sizeBytes: number;
   // From image-metadata (optional — only images)
@@ -34,10 +35,12 @@ export type FileDetail = PublicFileDetail;
 export type AuthoredMetadata = {
   project: string | null;
   tags: string[];
+  customFields: Record<string, string>;
   updatedAt: string;
 };
 
 export type AuthoredMetadataPatch = {
   project?: string | null;
   tags?: string[];
+  customFields?: Record<string, string>;
 };

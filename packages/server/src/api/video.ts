@@ -3,14 +3,15 @@ import { Readable } from 'node:stream';
 
 import { Hono } from 'hono';
 
-import { findFileByHash } from '@/storage/db';
+import { resolveHashPrefix } from '@/storage/db';
 
 export const video = new Hono();
 
 video.get('/files/:hash/video', (c) => {
-  const hash = c.req.param('hash');
-  const file = findFileByHash(hash);
-  if (!file) return c.json({ error: 'not found' }, 404);
+  const result = resolveHashPrefix(c.req.param('hash'));
+  if (result.kind === 'not_found') return c.json({ error: 'not found' }, 404);
+  if (result.kind === 'ambiguous') return c.json({ error: 'ambiguous hash prefix', candidates: result.candidates }, 400);
+  const file = result.file;
 
   if (!file.contentType?.startsWith('video/'))
     return c.json({ error: 'not a video' }, 415);
