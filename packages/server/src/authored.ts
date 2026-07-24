@@ -1,6 +1,6 @@
 import type { AuthoredMetadataPatch } from '@archive/shared';
 
-import { readAuthored, writeAuthored } from "@/storage/cas";
+import type { BlobStorage } from "@/storage/blobStorage";
 import { findFileByHash, updateAuthoredFields, replaceTags, replaceCustomFields } from "@/storage/db";
 
 /**
@@ -11,12 +11,12 @@ import { findFileByHash, updateAuthoredFields, replaceTags, replaceCustomFields 
  * Throws if the hash isn't in the archive, so a typo'd hash can't strand an
  * orphan sidecar with no file behind it.
  */
-export async function setAuthoredMetadata(hash: string, patch: AuthoredMetadataPatch): Promise<void> {
+export async function setAuthoredMetadata(hash: string, patch: AuthoredMetadataPatch, storage: BlobStorage): Promise<void> {
   if (!findFileByHash(hash)) {
     throw new Error(`Cannot set authored metadata: no archived file with hash ${hash}`);
   }
 
-  const existing = await readAuthored(hash);
+  const existing = await storage.readAuthored(hash);
   const merged = {
     hash,
     project: patch.project !== undefined ? patch.project : existing?.project ?? null,
@@ -25,7 +25,7 @@ export async function setAuthoredMetadata(hash: string, patch: AuthoredMetadataP
     updatedAt: new Date().toISOString(),
   };
 
-  await writeAuthored(merged);
+  await storage.writeAuthored(merged);
   updateAuthoredFields(hash, merged.project, merged.updatedAt);
   replaceTags(hash, 'authored', merged.tags);
   replaceCustomFields(hash, merged.customFields);

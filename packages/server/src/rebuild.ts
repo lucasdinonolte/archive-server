@@ -1,5 +1,6 @@
 import { pluginRegistry } from "@/plugins/registry";
-import { decodeSidecarEntry, listSidecarHashes, readAuthored, readSidecar } from "@/storage/cas";
+import { decodeSidecarEntry } from "@/storage/cas";
+import type { BlobStorage } from "@/storage/blobStorage";
 import {
   insertFileRecord,
   rebuildSchema,
@@ -18,15 +19,15 @@ import { logger } from "@/utils/logger";
  * re-run plugins (that is backfill's job), it only re-indexes what was already
  * computed. This is what makes the database a disposable, rebuildable index.
  */
-export async function rebuildDb(): Promise<void> {
+export async function rebuildDb(storage: BlobStorage): Promise<void> {
   const schemas = pluginRegistry.flatMap((plugin) => (plugin.schema ? [plugin.schema] : []));
   rebuildSchema(schemas);
 
-  const hashes = await listSidecarHashes();
+  const hashes = await storage.listSidecarHashes();
   let restored = 0;
 
   for (const hash of hashes) {
-    const sidecar = await readSidecar(hash);
+    const sidecar = await storage.readSidecar(hash);
     if (!sidecar) continue;
 
     insertFileRecord({
@@ -36,7 +37,6 @@ export async function rebuildDb(): Promise<void> {
       ingestedAt: sidecar.ingestedAt,
     });
 
-    // Decode plugin data and insert plugin rows.
     const pluginData: Record<string, Record<string, import("@/plugins/types").ColumnValue>> = {};
     for (const plugin of pluginRegistry) {
       if (!plugin.schema) continue;
@@ -47,18 +47,15 @@ export async function rebuildDb(): Promise<void> {
       pluginData[plugin.id] = decoded;
     }
 
-    // Compute and store projected fields from decoded plugin data.
     const projected = computeProjectedFields(pluginRegistry, pluginData);
     updateProjectedFields(hash, projected);
 
-    // Extract CLIP tags into the normalized tags table.
     if (pluginData['image-clip']) {
       const clipTags = extractClipTags(pluginData['image-clip']);
       replaceTags(hash, 'clip', clipTags);
     }
 
-    // Restore authored metadata.
-    const authored = await readAuthored(hash);
+    const authored = await storage.readAuthored(hash);
     if (authored) {
       updateAuthoredFields(hash, authored.project, authored.updatedAt);
       replaceTags(hash, 'authored', authored.tags);

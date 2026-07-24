@@ -1,9 +1,9 @@
 import type { Plugin } from './types';
-import { stat } from 'node:fs/promises';
 
 export const coreMetadataPlugin: Plugin = {
   id: "core-metadata",
   version: 1,
+  phase: "sync",
   appliesTo: () => true,
   schema: {
     table: "core_metadata",
@@ -14,8 +14,7 @@ export const coreMetadataPlugin: Plugin = {
     ],
   },
   analyze: async (ctx) => {
-    const { mtimeMs } = await stat(ctx.storagePath);
-    return { size_bytes: ctx.sizeBytes, content_type: ctx.contentType, mtime_ms: mtimeMs };
+    return { size_bytes: ctx.sizeBytes, content_type: ctx.contentType, mtime_ms: ctx.mtimeMs };
   },
   project: (data) => ({
     contentType: data.content_type as string,

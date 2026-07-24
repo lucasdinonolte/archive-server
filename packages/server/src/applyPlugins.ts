@@ -1,9 +1,8 @@
 import {
   encodePluginResult,
-  readSidecar,
-  writeSidecar,
   type SidecarPluginEntry,
 } from "@/storage/cas";
+import type { BlobStorage } from "@/storage/blobStorage";
 import { upsertFileRecord, upsertPluginRow, updateProjectedFields, replaceTags } from "@/storage/db";
 import { runPlugins } from "@/plugins/runner";
 import { computeProjectedFields, extractClipTags } from "@/projection";
@@ -26,17 +25,17 @@ import type { FileContext, Plugin } from "@/plugins/types";
  * then the plugin rows — which the foreign key requires to point at an existing
  * file. A crash mid-way leaves the DB behind the sidecar, never ahead.
  */
-export async function applyPlugins(ctx: FileContext, plugins: Plugin[], ingestedAt: string): Promise<void> {
+export async function applyPlugins(ctx: FileContext, plugins: Plugin[], ingestedAt: string, storage: BlobStorage): Promise<void> {
   const results = await runPlugins(ctx, plugins);
 
-  const existing = await readSidecar(ctx.hash);
+  const existing = await storage.readSidecar(ctx.hash);
   const resolvedIngestedAt = existing?.ingestedAt ?? ingestedAt;
   const entries: Record<string, SidecarPluginEntry> = { ...existing?.plugins };
   for (const [id, result] of Object.entries(results)) {
     entries[id] = encodePluginResult(result);
   }
 
-  await writeSidecar({
+  await storage.writeSidecar({
     hash: ctx.hash,
     originalFilename: ctx.originalFilename,
     ingestedAt: resolvedIngestedAt,
@@ -57,9 +56,6 @@ export async function applyPlugins(ctx: FileContext, plugins: Plugin[], ingested
     if (result) upsertPluginRow(plugin.schema, ctx.hash, result.data);
   }
 
-  // Write-time projection: compute projected fields from the plugins that ran
-  // and persist them on the files row. COALESCE in updateProjectedFields ensures
-  // a partial backfill (only stale plugins) doesn't null out existing values.
   const pluginData: Record<string, Record<string, import("@/plugins/types").ColumnValue>> = {};
   for (const plugin of plugins) {
     const result = results[plugin.id];
@@ -68,7 +64,6 @@ export async function applyPlugins(ctx: FileContext, plugins: Plugin[], ingested
   const projected = computeProjectedFields(plugins, pluginData);
   updateProjectedFields(ctx.hash, projected);
 
-  // Extract CLIP tags into the normalized tags table.
   const clipResult = results['image-clip'];
   if (clipResult) {
     const clipTags = extractClipTags(clipResult.data);

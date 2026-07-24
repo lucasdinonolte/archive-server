@@ -4,33 +4,24 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { config } from '@/config';
 import type { ColumnDefinition } from '@/plugins/types';
-import { encodePluginResult, fromJsonSafe, readSidecar, sidecarPathForHash, writeSidecar } from '@/storage/cas';
+import { encodePluginResult, fromJsonSafe } from '@/storage/cas';
+import { LocalBlobStorage } from '@/storage/localBlobStorage';
 
-// Redirect the content-addressed store to a throwaway dir for the duration of
-// the suite. cas.ts reads config.storageDir at call time, so mutating it here
-// is enough of a seam — no need to thread the path through every function.
-let originalStorageDir: string;
 let tmp: string;
+let storage: LocalBlobStorage;
 
 beforeAll(async () => {
   tmp = await mkdtemp(path.join(tmpdir(), 'cas-test-'));
-  originalStorageDir = config.storageDir;
-  config.storageDir = tmp;
+  storage = new LocalBlobStorage(tmp);
 });
 
 afterAll(async () => {
-  config.storageDir = originalStorageDir;
   await rm(tmp, { recursive: true, force: true });
 });
 
 describe('sidecar round-trip', () => {
   it('recovers every column type, byte-identically for BLOBs', async () => {
-    // The whole "DB is rebuildable from sidecars" claim rests on this: a value
-    // written to a sidecar must come back unchanged. BLOBs are the fragile case
-    // — before fromJsonSafe existed, a rebuild would have re-inserted the raw
-    // base64 string into a BLOB column, silently corrupting the embedding.
     const columns: ColumnDefinition[] = [
       { name: 'label', type: 'TEXT' },
       { name: 'count', type: 'INTEGER' },
@@ -41,7 +32,7 @@ describe('sidecar round-trip', () => {
     const embedding = Buffer.from(Float32Array.from([0.5, -1.25, 3]).buffer);
     const hash = 'a'.repeat(64);
 
-    await writeSidecar({
+    await storage.writeSidecar({
       hash,
       originalFilename: 'photo.png',
       ingestedAt: '2026-07-14T00:00:00.000Z',
@@ -55,7 +46,7 @@ describe('sidecar round-trip', () => {
       },
     });
 
-    const sidecar = await readSidecar(hash);
+    const sidecar = await storage.readSidecar(hash);
     if (!sidecar) throw new Error('expected sidecar to be written');
     expect(sidecar.formatVersion).toBe(2);
 
@@ -78,8 +69,6 @@ describe('sidecar round-trip', () => {
   });
 
   it('normalizes a legacy v1 sidecar to a version-0 envelope', async () => {
-    // Files archived before step 2 have no provenance. Reading one must not
-    // throw and must mark its plugins stale (version 0) so backfill re-runs them.
     const hash = 'b'.repeat(64);
     const legacy = {
       hash,
@@ -88,11 +77,11 @@ describe('sidecar round-trip', () => {
       storagePath: '/dev/null',
       plugins: { 'core-metadata': { size_bytes: 10, content_type: 'image/png' } },
     };
-    const filePath = sidecarPathForHash(hash);
-    await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, JSON.stringify(legacy));
+    const sidecarDir = path.join(tmp, hash.slice(0, 2), hash.slice(2, 4));
+    await mkdir(sidecarDir, { recursive: true });
+    await writeFile(path.join(sidecarDir, `${hash}.data.json`), JSON.stringify(legacy));
 
-    const sidecar = await readSidecar(hash);
+    const sidecar = await storage.readSidecar(hash);
     if (!sidecar) throw new Error('expected sidecar');
     expect(sidecar.formatVersion).toBe(1);
 
@@ -104,6 +93,6 @@ describe('sidecar round-trip', () => {
   });
 
   it('returns undefined for a hash with no sidecar', async () => {
-    expect(await readSidecar('f'.repeat(64))).toBeUndefined();
+    expect(await storage.readSidecar('f'.repeat(64))).toBeUndefined();
   });
 });

@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@archive/shared": "*"
+    "@archive/shared": "*",
+    "@archive/server": "*"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

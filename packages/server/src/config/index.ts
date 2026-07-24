@@ -1,5 +1,7 @@
 import path from "node:path";
 import { env } from "@/config/env";
+import { LocalBlobStorage } from "@/storage/localBlobStorage";
+import type { BlobStorage } from "@/storage/blobStorage";
 
 export const config = {
   incomingDir: path.join(env.ROOT, "incoming"),
@@ -15,3 +17,7 @@ export const config = {
   apiHost: env.API_HOST,
   apiKey: env.API_KEY,
 };
+
+export function createStorage(): BlobStorage {
+  return new LocalBlobStorage(config.storageDir);
+}

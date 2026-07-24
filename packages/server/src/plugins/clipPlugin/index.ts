@@ -91,6 +91,7 @@ export const createClipPlugin = async (): Promise<Plugin> => {
   return {
     id: 'image-clip',
     version: 2,
+    phase: "async",
     appliesTo: (ctx) => ctx.contentType.startsWith('image/'),
     schema: {
       table: 'image_clip',

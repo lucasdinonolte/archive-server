@@ -9,6 +9,8 @@ import { applyPlugins } from '@/applyPlugins';
 import { pluginRegistry } from '@/plugins/registry';
 import type { Plugin, PluginSchema } from '@/plugins/types';
 import { rebuildDb } from '@/rebuild';
+import { LocalBlobStorage } from '@/storage/localBlobStorage';
+import type { BlobStorage } from '@/storage/blobStorage';
 import {
   createDatabaseConnection,
   ensurePluginTable,
@@ -16,8 +18,6 @@ import {
   getPluginRow,
 } from '@/storage/db';
 
-// A self-contained fake plugin: its analyze() ignores the file and returns a
-// counter plus a fixed BLOB, so the test needs no real assets and no CLIP model.
 let counter = 0;
 const fakeSchema: PluginSchema = {
   table: 'fake',
@@ -38,6 +38,7 @@ let tmp: string;
 let originalStorageDir: string;
 let originalDbPath: string;
 let originalRegistry: Plugin[];
+let storage: BlobStorage;
 
 beforeAll(async () => {
   tmp = await mkdtemp(path.join(tmpdir(), 'rebuild-test-'));
@@ -45,6 +46,8 @@ beforeAll(async () => {
   originalDbPath = config.dbPath;
   config.storageDir = path.join(tmp, 'storage');
   config.dbPath = path.join(tmp, 'archive.db');
+
+  storage = new LocalBlobStorage(config.storageDir);
 
   originalRegistry = [...pluginRegistry];
   pluginRegistry.length = 0;
@@ -63,24 +66,23 @@ afterAll(async () => {
 });
 
 it('rebuilds the database from sidecars, with BLOBs byte-identical', async () => {
-  // This is the whole "the DB is a disposable index" claim, end to end: write a
-  // file's data, wipe and rebuild the DB purely from its sidecar, and get the
-  // exact same rows back — embedding bytes included.
   const hash = 'a'.repeat(64);
   const ctx = {
     hash,
+    ext: '.bin',
     storagePath: path.join(config.storageDir, 'file.bin'),
     originalFilename: 'file.bin',
     sizeBytes: 4,
     contentType: 'application/octet-stream',
+    mtimeMs: Date.now(),
   };
 
-  await applyPlugins(ctx, pluginRegistry, '2026-07-14T00:00:00.000Z');
+  await applyPlugins(ctx, pluginRegistry, '2026-07-14T00:00:00.000Z', storage);
 
   const before = getPluginRow('fake', hash);
   expect(before).toBeDefined();
 
-  await rebuildDb();
+  await rebuildDb(storage);
 
   const file = findFileByHash(hash);
   expect(file?.originalFilename).toBe('file.bin');

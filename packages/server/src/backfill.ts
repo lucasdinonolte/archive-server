@@ -1,28 +1,24 @@
 import { stat } from "node:fs/promises";
 
-import { applyPlugins } from "@/applyPlugins";
 import { guessContentType } from "@/mime";
 import { pluginRegistry } from "@/plugins/registry";
-import type { FileContext } from "@/plugins/types";
-import { TaskQueue } from "@/queue";
-import { listSidecarHashes, readSidecar } from "@/storage/cas";
+import type { BlobStorage } from "@/storage/blobStorage";
+import { JobQueue } from "@/storage/jobQueue";
 import { logger } from "@/utils/logger";
 
 /**
- * Applies any new or updated plugins to files already in the archive. For each
- * sidecar it recomputes the subset of plugins that apply but whose stored result
- * is missing or older than the plugin's current version, and enqueues the work.
- *
- * Idempotent: files already up to date are skipped, and a crashed run just
- * re-runs the same stale subset. Reads exclusively from sidecars, so it works
- * regardless of database state.
+ * Scans sidecars for stale plugins and enqueues them as jobs. The worker
+ * picks them up. The UNIQUE(file_hash, plugin_id) constraint makes this
+ * idempotent — re-running backfill never creates duplicate jobs.
  */
-export async function backfill(queue: TaskQueue): Promise<void> {
-  const hashes = await listSidecarHashes();
+export async function backfill(storage: BlobStorage, jobQueue: JobQueue): Promise<void> {
+  const hashes = await storage.listSidecarHashes();
   let queued = 0;
 
+  const entries: Array<{ fileHash: string; pluginId: string }> = [];
+
   for (const hash of hashes) {
-    const sidecar = await readSidecar(hash);
+    const sidecar = await storage.readSidecar(hash);
     if (!sidecar) continue;
 
     const fileStat = await stat(sidecar.storagePath).catch(() => undefined);
@@ -31,12 +27,15 @@ export async function backfill(queue: TaskQueue): Promise<void> {
       continue;
     }
 
-    const ctx: FileContext = {
+    const ext = sidecar.storagePath.match(/\.[^.]+$/)?.[0] ?? "";
+    const ctx = {
       hash: sidecar.hash,
+      ext,
       storagePath: sidecar.storagePath,
       originalFilename: sidecar.originalFilename,
       sizeBytes: fileStat.size,
       contentType: guessContentType(sidecar.storagePath),
+      mtimeMs: fileStat.mtimeMs,
     };
 
     const stale = pluginRegistry.filter((plugin) => {
@@ -48,8 +47,14 @@ export async function backfill(queue: TaskQueue): Promise<void> {
 
     queued++;
     logger.info(`Backfill: ${hash.slice(0, 12)}... needs ${stale.map((p) => p.id).join(", ")}`);
-    queue.push(() => applyPlugins(ctx, stale, sidecar.ingestedAt));
+    for (const plugin of stale) {
+      entries.push({ fileHash: hash, pluginId: plugin.id });
+    }
   }
 
-  logger.info(`Backfill: queued ${queued}/${hashes.length} file(s)`);
+  if (entries.length > 0) {
+    jobQueue.enqueueMany(entries);
+  }
+
+  logger.info(`Backfill: enqueued ${queued}/${hashes.length} file(s)`);
 }

@@ -4,6 +4,7 @@ import sharp from 'sharp';
 export const imageMetadataPlugin: Plugin = {
   id: 'image-metadata',
   version: 1,
+  phase: "async",
   appliesTo: (ctx) => ctx.contentType.startsWith('image/'),
   schema: {
     table: 'image_metadata',
